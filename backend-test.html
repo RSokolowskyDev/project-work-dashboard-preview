@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f3f6f1">
+<title>Secure Database Test | Interior Solutions</title>
+<style>
+:root{color-scheme:light;--ink:#23332b;--muted:#65756b;--green:#356a4e;--line:#dce5dd;--wash:#f3f6f1}
+*{box-sizing:border-box}body{margin:0;background:var(--wash);color:var(--ink);font:15px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{background:#fff;border-bottom:1px solid var(--line);padding:18px max(20px,calc((100vw - 1100px)/2));display:flex;align-items:center;justify-content:space-between;gap:16px}
+.brand{font-weight:750;letter-spacing:.01em}.tag{color:var(--muted);font-size:12px;margin-top:2px}
+main{max-width:1100px;margin:34px auto;padding:0 20px}.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px;box-shadow:0 8px 28px #163d2410}
+h1{font-size:25px;line-height:1.2;margin:0 0 8px}h2{font-size:18px;margin:0 0 6px}p{color:var(--muted);margin:0 0 18px}
+label{display:block;font-weight:650;font-size:13px;margin:0 0 6px}input,select{display:block;width:100%;padding:11px 12px;border:1px solid #cbd8cd;border-radius:8px;font:inherit;background:#fff;color:var(--ink)}
+.auth-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.span-2{grid-column:1/-1}
+button,.button{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:8px;background:var(--green);color:#fff;padding:11px 16px;font:650 14px system-ui;cursor:pointer;text-decoration:none}
+button.secondary{background:#fff;color:var(--green);border:1px solid #b9ccbd}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.status{padding:10px 12px;border-radius:8px;background:#edf4ee;color:#315d40;margin:14px 0 0;white-space:pre-wrap}.status.error{background:#fff1ef;color:#9a3224}
+.notice{font-size:12px;background:#f7f9f6;border:1px solid var(--line);padding:11px 13px;border-radius:8px;color:#53645a;margin:16px 0 0}
+.hidden{display:none!important}.topline{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:18px}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px}
+table{width:100%;border-collapse:collapse;min-width:760px;background:#fff}th,td{text-align:left;padding:11px 12px;border-bottom:1px solid #e8eee8;vertical-align:top}th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#64756a;background:#f8faf8;position:sticky;top:0}td{font-size:13px}tr:last-child td{border-bottom:0}.summary{max-width:380px;white-space:pre-wrap}.pill{display:inline-block;border-radius:99px;padding:3px 9px;background:#eef4ee;font-size:11px;color:#42654b}
+#qr{display:block;max-width:190px;max-height:190px;margin:12px auto;border:1px solid var(--line);padding:8px;border-radius:8px;background:#fff}.back{color:var(--green);text-decoration:none;font-size:13px}
+@media(max-width:620px){.auth-grid{grid-template-columns:1fr}.span-2{grid-column:auto}.card{padding:18px}header{padding:15px 18px}.topline{align-items:flex-start;flex-direction:column}}
+</style>
+</head>
+<body>
+<header><div><div class="brand">Interior Solutions · Project Work</div><div class="tag">Secure database connection test</div></div><a class="back" href="/">Back to dashboard</a></header>
+<main>
+<section id="authCard" class="card">
+<h1>Sign in to the project database</h1>
+<p>Use your Interior Solutions email. The first sign-in will ask you to set up an authenticator app.</p>
+<form id="authForm" class="auth-grid">
+<div id="nameField" class="span-2 hidden"><label for="fullName">Your name</label><input id="fullName" autocomplete="name" placeholder="First and last name"></div>
+<div class="span-2"><label for="email">Company email</label><input id="email" type="email" autocomplete="username" required placeholder="you@interiorsolutions.net"></div>
+<div class="span-2"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" minlength="8" required></div>
+<div class="span-2 actions"><button id="submitAuth" type="submit">Sign in</button><button id="toggleMode" class="secondary" type="button">Create account</button></div>
+</form>
+<div id="authStatus" class="status hidden" role="status"></div>
+<div class="notice">This preview reads the project records only. Updates and deletes are disabled.</div>
+</section>
+<section id="mfaCard" class="card hidden">
+<h1 id="mfaTitle">Authenticator verification</h1>
+<p id="mfaHelp">Enter the current code from your authenticator app.</p>
+<img id="qr" class="hidden" alt="Authenticator setup QR code">
+<form id="mfaForm">
+<label for="totpCode">6-digit code</label><input id="totpCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
+<div class="actions"><button type="submit">Verify and continue</button></div>
+</form>
+<div id="mfaStatus" class="status hidden" role="status"></div>
+</section>
+<section id="recordsCard" class="card hidden">
+<div class="topline"><div><h1>Project records</h1><p id="recordSummary">Read-only connection to Project Tracker - Internal.</p></div><button id="signOut" class="secondary" type="button">Sign out</button></div>
+<div class="auth-grid" style="margin-bottom:16px"><div><label for="assigneeFilter">View assigned records</label><select id="assigneeFilter"><option value="">All project records</option></select></div><div class="notice" style="margin:0;align-self:end">Company-account access is enforced by the database. The assignee filter only narrows the view on this page.</div></div>
+<div id="dataStatus" class="status hidden" role="status"></div>
+<div class="table-wrap"><table><thead><tr><th>Project</th><th>Record</th><th>Status</th><th>Assigned to</th><th>Date</th><th>Summary</th></tr></thead><tbody id="rows"></tbody></table></div>
+</section>
+</main>
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/+esm';
+const SUPABASE_URL = 'https://qyeelndmdqptybsghmjm.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Wh0weQys-eyO5-Tk8h1lUA_f6rFB34f';
+const COMPANY_DOMAIN = '@interiorsolutions.net';
+const db = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
+const byId = id => document.getElementById(id);
+const authCard = byId('authCard'), mfaCard = byId('mfaCard'), recordsCard = byId('recordsCard');
+const authStatus = byId('authStatus'), mfaStatus = byId('mfaStatus'), dataStatus = byId('dataStatus');
+let authMode = 'signin', pendingFactorId = '', pendingChallengeId = '', mfaMode = '';
+let records = [], displayName = '';
+function status(el, message, error) { el.textContent = message; el.classList.toggle('hidden', !message); el.classList.toggle('error', !!error); }
+function show(screen) { authCard.classList.toggle('hidden', screen !== 'auth'); mfaCard.classList.toggle('hidden', screen !== 'mfa'); recordsCard.classList.toggle('hidden', screen !== 'records'); }
+function setAuthMode(mode) { authMode = mode; byId('nameField').classList.toggle('hidden', mode !== 'signup'); byId('fullName').required = mode === 'signup'; byId('submitAuth').textContent = mode === 'signup' ? 'Create account' : 'Sign in'; byId('toggleMode').textContent = mode === 'signup' ? 'I already have an account' : 'Create account'; status(authStatus, '', false); }
+byId('toggleMode').addEventListener('click', () => setAuthMode(authMode === 'signin' ? 'signup' : 'signin'));
+byId('authForm').addEventListener('submit', async event => {
+  event.preventDefault(); status(authStatus, 'Connecting…', false);
+  const email = byId('email').value.trim().toLowerCase(), password = byId('password').value;
+  if (!email.endsWith(COMPANY_DOMAIN)) { status(authStatus, 'Use your @interiorsolutions.net email address.', true); return; }
+  if (authMode === 'signup') {
+    const name = byId('fullName').value.trim();
+    if (!name) { status(authStatus, 'Enter your name to create the account.', true); return; }
+    const { data, error } = await db.auth.signUp({ email, password, options: { data: { full_name: name }, emailRedirectTo: window.location.origin + '/backend-test.html' } });
+    if (error) { status(authStatus, error.message, true); return; }
+    if (!data.session) { status(authStatus, 'Account created. Check your company inbox to confirm your email, then return here and sign in.', false); return; }
+    await continueAfterSignIn(data.session.user);
+  } else {
+    const { data, error } = await db.auth.signInWithPassword({ email, password });
+    if (error) { status(authStatus, error.message, true); return; }
+    await continueAfterSignIn(data.user);
+  }
+});
+async function continueAfterSignIn(user) {
+  displayName = (user.user_metadata && user.user_metadata.full_name) || user.email || '';
+  status(mfaStatus, '', false); show('mfa');
+  const { data: aalData, error: aalError } = await db.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (aalError) { status(mfaStatus, aalError.message, true); return; }
+  if (aalData.currentLevel === 'aal2') { await loadRecords(); return; }
+  const { data: factorData, error: factorError } = await db.auth.mfa.listFactors();
+  if (factorError) { status(mfaStatus, factorError.message, true); return; }
+  const factor = (factorData.all || []).find(item => item.factor_type === 'totp' && item.status === 'verified');
+  if (factor) {
+    pendingFactorId = factor.id; mfaMode = 'challenge'; byId('qr').classList.add('hidden');
+    byId('mfaTitle').textContent = 'Enter your authenticator code'; byId('mfaHelp').textContent = 'Enter the current 6-digit code from your authenticator app.';
+    const { data: challenge, error } = await db.auth.mfa.challenge({ factorId: pendingFactorId });
+    if (error) { status(mfaStatus, error.message, true); return; }
+    pendingChallengeId = challenge.id; byId('totpCode').focus(); return;
+  }
+  const { data: enrollment, error: enrollError } = await db.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Project Work Dashboard' });
+  if (enrollError) { status(mfaStatus, enrollError.message, true); return; }
+  pendingFactorId = enrollment.id; mfaMode = 'enroll';
+  byId('mfaTitle').textContent = 'Set up your authenticator app';
+  byId('mfaHelp').textContent = 'Scan this QR code in your authenticator app, then enter the 6-digit code it generates.';
+  const qr = enrollment.totp && enrollment.totp.qr_code;
+  if (qr) { byId('qr').src = qr.startsWith('data:') ? qr : 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(qr); byId('qr').classList.remove('hidden'); }
+  byId('totpCode').focus();
+}
+byId('mfaForm').addEventListener('submit', async event => {
+  event.preventDefault(); status(mfaStatus, 'Checking code…', false);
+  const code = byId('totpCode').value.trim();
+  let challengeId = pendingChallengeId;
+  if (mfaMode === 'enroll') {
+    const { data: challenge, error } = await db.auth.mfa.challenge({ factorId: pendingFactorId });
+    if (error) { status(mfaStatus, error.message, true); return; }
+    challengeId = challenge.id;
+  }
+  const { error } = await db.auth.mfa.verify({ factorId: pendingFactorId, challengeId, code });
+  if (error) { status(mfaStatus, error.message, true); return; }
+  byId('totpCode').value = ''; await loadRecords();
+});
+async function loadRecords() {
+  show('records'); status(dataStatus, 'Loading project records…', false);
+  const { data, error } = await db.from('project_records')
+    .select('project_id,project_name,record_id,record_date,event_date,source,entered_by,assigned_to,status,record_type,summary')
+    .order('record_date', { ascending: false });
+  if (error) { status(dataStatus, 'The database connection or access policy rejected the query: ' + error.message, true); return; }
+  records = data || [];
+  byId('recordSummary').textContent = records.length + ' records loaded from Project Tracker - Internal. Signed in as ' + displayName + '.';
+  const filter = byId('assigneeFilter'), current = filter.value;
+  const assignees = [...new Set(records.map(row => row.assigned_to).filter(Boolean))].sort((a,b) => a.localeCompare(b));
+  filter.innerHTML = '<option value="">All project records</option>' + assignees.map(name => '<option value="' + encodeURIComponent(name) + '">' + escapeHtml(name) + '</option>').join('');
+  const match = assignees.find(name => name.toLowerCase() === displayName.toLowerCase());
+  filter.value = current || (match ? encodeURIComponent(match) : '');
+  filter.onchange = renderRows; renderRows(); status(dataStatus, '', false);
+}
+function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])); }
+function renderRows() {
+  const selected = byId('assigneeFilter').value ? decodeURIComponent(byId('assigneeFilter').value) : '';
+  const visible = selected ? records.filter(row => row.assigned_to === selected) : records;
+  byId('rows').innerHTML = visible.map(row => '<tr><td>' + escapeHtml(row.project_name || row.project_id) + '</td><td><span class="pill">' + escapeHtml(row.record_type || 'record') + '</span></td><td>' + escapeHtml(row.status || '—') + '</td><td>' + escapeHtml(row.assigned_to || '—') + '</td><td>' + escapeHtml(row.record_date ? new Date(row.record_date).toLocaleDateString() : '—') + '</td><td class="summary">' + escapeHtml(row.summary || '') + '</td></tr>').join('');
+}
+byId('signOut').addEventListener('click', async () => { await db.auth.signOut(); records = []; show('auth'); setAuthMode('signin'); status(authStatus, 'Signed out.', false); });
+(async function start() {
+  const { data, error } = await db.auth.getSession();
+  if (error) { show('auth'); status(authStatus, error.message, true); return; }
+  if (data.session) await continueAfterSignIn(data.session.user); else { show('auth'); setAuthMode('signin'); }
+})();
+</script>
+</body></html>
