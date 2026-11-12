@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#f3f6f1">
-<title>Secure Database Test | Interior Solutions</title>
+<title>Sign in | Interior Solutions</title>
 <style>
 :root{color-scheme:light;--ink:#23332b;--muted:#65756b;--green:#356a4e;--line:#dce5dd;--wash:#f3f6f1}
 *{box-sizing:border-box}body{margin:0;background:var(--wash);color:var(--ink);font:15px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -25,13 +25,12 @@ table{width:100%;border-collapse:collapse;min-width:760px;background:#fff}th,td{
 </style>
 </head>
 <body>
-<header><div><div class="brand">Interior Solutions · Project Work</div><div class="tag">Secure database connection test</div></div><a class="back" href="/">Back to dashboard</a></header>
+<header><div><div class="brand">Interior Solutions · Project Work</div><div class="tag">Project dashboard</div></div></header>
 <main>
 <section id="authCard" class="card">
-<h1>Sign in to the project database</h1>
+<h1>Sign in to your dashboard</h1>
 <p>Use your Interior Solutions email and password. New accounts also need the project access code once. The first sign-in will ask you to set up an authenticator app.</p>
 <form id="authForm" class="auth-grid">
-<div id="nameField" class="span-2 hidden"><label for="fullName">Your name</label><input id="fullName" autocomplete="name" placeholder="First and last name"></div>
 <div class="span-2"><label for="email">Company email</label><input id="email" type="email" autocomplete="username" required placeholder="you@interiorsolutions.net"></div>
 <div id="accessCodeField" class="span-2 hidden"><label for="accessCode">Project access code</label><input id="accessCode" type="password" autocomplete="off" autocapitalize="characters" spellcheck="false"></div>
 <div class="span-2"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" minlength="8" required></div>
@@ -39,7 +38,7 @@ table{width:100%;border-collapse:collapse;min-width:760px;background:#fff}th,td{
 <div class="span-2 actions"><button id="submitAuth" type="submit">Sign in</button><button id="toggleMode" class="secondary" type="button">Create account</button></div>
 </form>
 <div id="authStatus" class="status hidden" role="status"></div>
-<div class="notice">This preview uses an isolated test table only. It does not access or change live project records.</div>
+<div class="notice">Your account shows the project records assigned to you.</div>
 </section>
 <section id="mfaCard" class="card hidden">
 <h1 id="mfaTitle">Authenticator verification</h1>
@@ -51,13 +50,7 @@ table{width:100%;border-collapse:collapse;min-width:760px;background:#fff}th,td{
 </form>
 <div id="mfaStatus" class="status hidden" role="status"></div>
 </section>
-<section id="recordsCard" class="card hidden">
-<div class="topline"><div><h1>Database connection test</h1><p id="recordSummary">Run a temporary write, read, and delete using your own signed-in session.</p></div><button id="signOut" class="secondary" type="button">Sign out</button></div>
-<div class="actions" style="margin:0 0 16px"><button id="runTest" type="button">Run write / read / delete test</button></div>
-<div id="dataStatus" class="status hidden" role="status"></div>
-<div class="notice" style="margin:0 0 16px">This test uses an isolated table with per-user row security. It does not access or change the live project records.</div>
-<div class="table-wrap"><table><thead><tr><th>Test record</th><th>Created</th></tr></thead><tbody id="rows"></tbody></table></div>
-</section>
+<section id="recordsCard" class="hidden"></section>
 </main>
 <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/+esm';
@@ -73,7 +66,7 @@ let records = [], displayName = '';
 function escapeHtml(value) { return String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])); }
 function status(el, message, error) { el.textContent = message; el.classList.toggle('hidden', !message); el.classList.toggle('error', !!error); }
 function show(screen) { authCard.classList.toggle('hidden', screen !== 'auth'); mfaCard.classList.toggle('hidden', screen !== 'mfa'); recordsCard.classList.toggle('hidden', screen !== 'records'); }
-function setAuthMode(mode) { authMode = mode; byId('nameField').classList.toggle('hidden', mode !== 'signup'); byId('fullName').required = mode === 'signup'; byId('accessCodeField').classList.toggle('hidden', mode !== 'signup'); byId('accessCode').required = mode === 'signup'; byId('confirmPasswordField').classList.toggle('hidden', mode !== 'signup'); byId('confirmPassword').required = mode === 'signup'; byId('password').autocomplete = mode === 'signup' ? 'new-password' : 'current-password'; byId('submitAuth').textContent = mode === 'signup' ? 'Create account' : 'Sign in'; byId('toggleMode').textContent = mode === 'signup' ? 'I already have an account' : 'Create account'; status(authStatus, '', false); }
+function setAuthMode(mode) { authMode = mode; byId('accessCodeField').classList.toggle('hidden', mode !== 'signup'); byId('accessCode').required = mode === 'signup'; byId('confirmPasswordField').classList.toggle('hidden', mode !== 'signup'); byId('confirmPassword').required = mode === 'signup'; byId('password').autocomplete = mode === 'signup' ? 'new-password' : 'current-password'; byId('submitAuth').textContent = mode === 'signup' ? 'Create account' : 'Sign in'; byId('toggleMode').textContent = mode === 'signup' ? 'I already have an account' : 'Create account'; status(authStatus, '', false); }
 byId('toggleMode').addEventListener('click', () => setAuthMode(authMode === 'signin' ? 'signup' : 'signin'));
 byId('authForm').addEventListener('submit', async event => {
   event.preventDefault(); status(authStatus, 'Connecting…', false);
@@ -83,13 +76,11 @@ byId('authForm').addEventListener('submit', async event => {
   if (!email.endsWith(COMPANY_DOMAIN)) { status(authStatus, 'Use your @interiorsolutions.net email address.', true); return; }
   if (authMode === 'signup') {
     if (password !== confirmPassword) { status(authStatus, 'The passwords do not match. Re-enter them and try again.', true); return; }
-    const name = byId('fullName').value.trim();
     if (!accessCode) { status(authStatus, 'Enter the project access code to create an account.', true); return; }
     const { data: accessAllowed, error: accessError } = await db.rpc('prepare_dashboard_registration', { p_email: email, p_access_code: accessCode });
     if (accessError) { status(authStatus, 'Could not validate the project access code: ' + accessError.message, true); return; }
     if (accessAllowed !== true) { status(authStatus, 'That email or project access code is not valid for registration.', true); return; }
-    if (!name) { status(authStatus, 'Enter your name to create the account.', true); return; }
-    const { data, error } = await db.auth.signUp({ email, password, options: { data: { full_name: name } } });
+    const { data, error } = await db.auth.signUp({ email, password });
     if (error) { status(authStatus, error.message, true); return; }
     if (!data.session) { status(authStatus, 'Account created. Check your company inbox to confirm your email, then return here and sign in.', false); return; }
     await continueAfterSignIn(data.session.user);
@@ -137,41 +128,7 @@ byId('mfaForm').addEventListener('submit', async event => {
   if (error) { status(mfaStatus, error.message, true); return; }
   byId('totpCode').value = ''; await loadRecords();
 });
-async function loadRecords() {
-  show('records'); status(dataStatus, 'Checking your isolated test rows…', false);
-  const { data, error } = await db.from('dashboard_smoke_tests').select('id,message,created_at').order('created_at', { ascending: false });
-  if (error) { status(dataStatus, 'The database connection or access policy rejected the query: ' + error.message, true); return; }
-  const rows = data || [];
-  byId('recordSummary').textContent = 'Signed in as ' + displayName + '. Only your own temporary test rows are visible.';
-  byId('rows').innerHTML = rows.map(row => '<tr><td>' + escapeHtml(row.message) + '</td><td>' + escapeHtml(row.created_at ? new Date(row.created_at).toLocaleString() : '—') + '</td></tr>').join('');
-  if (!rows.length) byId('rows').innerHTML = '<tr><td colspan="2">No test records are stored.</td></tr>';
-  status(dataStatus, '', false);
-}
-async function runDatabaseTest() {
-  const button = byId('runTest'); button.disabled = true; status(dataStatus, 'Testing authenticated database access…', false);
-  let testId = null, failure = '';
-  try {
-    const inserted = await db.from('dashboard_smoke_tests').insert({ message: 'Disposable browser test from ' + displayName }).select('id,message').single();
-    if (inserted.error) throw inserted.error;
-    testId = inserted.data.id;
-    const readBack = await db.from('dashboard_smoke_tests').select('id,message').eq('id', testId).single();
-    if (readBack.error) throw readBack.error;
-    if (readBack.data.id !== testId) throw new Error('The inserted test row could not be verified.');
-  } catch (error) { failure = error.message || String(error); }
-  if (testId) {
-    const removed = await db.from('dashboard_smoke_tests').delete().eq('id', testId).select('id');
-    if (removed.error) failure = (failure ? failure + ' ' : '') + 'Cleanup failed: ' + removed.error.message;
-    const check = await db.from('dashboard_smoke_tests').select('id').eq('id', testId);
-    if (check.error) failure = (failure ? failure + ' ' : '') + 'Cleanup verification failed: ' + check.error.message;
-    else if ((check.data || []).length) failure = (failure ? failure + ' ' : '') + 'The temporary test row still exists.';
-  }
-  await loadRecords();
-  if (failure) status(dataStatus, 'Test did not fully pass: ' + failure, true);
-  else status(dataStatus, 'Passed: your signed-in session inserted and read a test row, then deleted it. No test row remains.', false);
-  button.disabled = false;
-}
-byId('runTest').addEventListener('click', runDatabaseTest);
-byId('signOut').addEventListener('click', async () => { await db.auth.signOut(); records = []; show('auth'); setAuthMode('signin'); status(authStatus, 'Signed out.', false); });
+async function loadRecords() { window.location.replace('/'); }
 (async function start() {
   const { data, error } = await db.auth.getSession();
   if (error) { show('auth'); status(authStatus, error.message, true); return; }
