@@ -79,7 +79,7 @@ byId('authForm').addEventListener('submit', async event => {
   if (authMode === 'signup') {
     const name = byId('fullName').value.trim();
     if (!name) { status(authStatus, 'Enter your name to create the account.', true); return; }
-    const { data, error } = await db.auth.signUp({ email, password, options: { data: { full_name: name }, emailRedirectTo: window.location.origin + '/backend-test.html' } });
+    const { data, error } = await db.auth.signUp({ email, password, options: { data: { full_name: name } } });
     if (error) { status(authStatus, error.message, true); return; }
     if (!data.session) { status(authStatus, 'Account created. Check your company inbox to confirm your email, then return here and sign in.', false); return; }
     await continueAfterSignIn(data.session.user);
