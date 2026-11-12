@@ -50,10 +50,11 @@ table{width:100%;border-collapse:collapse;min-width:760px;background:#fff}th,td{
 <div id="mfaStatus" class="status hidden" role="status"></div>
 </section>
 <section id="recordsCard" class="card hidden">
-<div class="topline"><div><h1>Project records</h1><p id="recordSummary">Read-only connection to Project Tracker - Internal.</p></div><button id="signOut" class="secondary" type="button">Sign out</button></div>
-<div class="auth-grid" style="margin-bottom:16px"><div><label for="assigneeFilter">View assigned records</label><select id="assigneeFilter"><option value="">All project records</option></select></div><div class="notice" style="margin:0;align-self:end">Company-account access is enforced by the database. The assignee filter only narrows the view on this page.</div></div>
+<div class="topline"><div><h1>Database connection test</h1><p id="recordSummary">Run a temporary write, read, and delete using your own signed-in session.</p></div><button id="signOut" class="secondary" type="button">Sign out</button></div>
+<div class="actions" style="margin:0 0 16px"><button id="runTest" type="button">Run write / read / delete test</button></div>
 <div id="dataStatus" class="status hidden" role="status"></div>
-<div class="table-wrap"><table><thead><tr><th>Project</th><th>Record</th><th>Status</th><th>Assigned to</th><th>Date</th><th>Summary</th></tr></thead><tbody id="rows"></tbody></table></div>
+<div class="notice" style="margin:0 0 16px">This test uses an isolated table with per-user row security. It does not access or change the live project records.</div>
+<div class="table-wrap"><table><thead><tr><th>Test record</th><th>Created</th></tr></thead><tbody id="rows"></tbody></table></div>
 </section>
 </main>
 <script type="module">
@@ -127,26 +128,39 @@ byId('mfaForm').addEventListener('submit', async event => {
   byId('totpCode').value = ''; await loadRecords();
 });
 async function loadRecords() {
-  show('records'); status(dataStatus, 'Loading project records…', false);
-  const { data, error } = await db.from('project_records')
-    .select('project_id,project_name,record_id,record_date,event_date,source,entered_by,assigned_to,status,record_type,summary')
-    .order('record_date', { ascending: false });
+  show('records'); status(dataStatus, 'Checking your isolated test rows…', false);
+  const { data, error } = await db.from('dashboard_smoke_tests').select('id,message,created_at').order('created_at', { ascending: false });
   if (error) { status(dataStatus, 'The database connection or access policy rejected the query: ' + error.message, true); return; }
-  records = data || [];
-  byId('recordSummary').textContent = records.length + ' records loaded from Project Tracker - Internal. Signed in as ' + displayName + '.';
-  const filter = byId('assigneeFilter'), current = filter.value;
-  const assignees = [...new Set(records.map(row => row.assigned_to).filter(Boolean))].sort((a,b) => a.localeCompare(b));
-  filter.innerHTML = '<option value="">All project records</option>' + assignees.map(name => '<option value="' + encodeURIComponent(name) + '">' + escapeHtml(name) + '</option>').join('');
-  const match = assignees.find(name => name.toLowerCase() === displayName.toLowerCase());
-  filter.value = current || (match ? encodeURIComponent(match) : '');
-  filter.onchange = renderRows; renderRows(); status(dataStatus, '', false);
+  const rows = data || [];
+  byId('recordSummary').textContent = 'Signed in as ' + displayName + '. Only your own temporary test rows are visible.';
+  byId('rows').innerHTML = rows.map(row => '<tr><td>' + escapeHtml(row.message) + '</td><td>' + escapeHtml(row.created_at ? new Date(row.created_at).toLocaleString() : '—') + '</td></tr>').join('');
+  if (!rows.length) byId('rows').innerHTML = '<tr><td colspan="2">No test records are stored.</td></tr>';
+  status(dataStatus, '', false);
 }
-function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])); }
-function renderRows() {
-  const selected = byId('assigneeFilter').value ? decodeURIComponent(byId('assigneeFilter').value) : '';
-  const visible = selected ? records.filter(row => row.assigned_to === selected) : records;
-  byId('rows').innerHTML = visible.map(row => '<tr><td>' + escapeHtml(row.project_name || row.project_id) + '</td><td><span class="pill">' + escapeHtml(row.record_type || 'record') + '</span></td><td>' + escapeHtml(row.status || '—') + '</td><td>' + escapeHtml(row.assigned_to || '—') + '</td><td>' + escapeHtml(row.record_date ? new Date(row.record_date).toLocaleDateString() : '—') + '</td><td class="summary">' + escapeHtml(row.summary || '') + '</td></tr>').join('');
+async function runDatabaseTest() {
+  const button = byId('runTest'); button.disabled = true; status(dataStatus, 'Testing authenticated database access…', false);
+  let testId = null, failure = '';
+  try {
+    const inserted = await db.from('dashboard_smoke_tests').insert({ message: 'Disposable browser test from ' + displayName }).select('id,message').single();
+    if (inserted.error) throw inserted.error;
+    testId = inserted.data.id;
+    const readBack = await db.from('dashboard_smoke_tests').select('id,message').eq('id', testId).single();
+    if (readBack.error) throw readBack.error;
+    if (readBack.data.id !== testId) throw new Error('The inserted test row could not be verified.');
+  } catch (error) { failure = error.message || String(error); }
+  if (testId) {
+    const removed = await db.from('dashboard_smoke_tests').delete().eq('id', testId).select('id');
+    if (removed.error) failure = (failure ? failure + ' ' : '') + 'Cleanup failed: ' + removed.error.message;
+    const check = await db.from('dashboard_smoke_tests').select('id').eq('id', testId);
+    if (check.error) failure = (failure ? failure + ' ' : '') + 'Cleanup verification failed: ' + check.error.message;
+    else if ((check.data || []).length) failure = (failure ? failure + ' ' : '') + 'The temporary test row still exists.';
+  }
+  await loadRecords();
+  if (failure) status(dataStatus, 'Test did not fully pass: ' + failure, true);
+  else status(dataStatus, 'Passed: your signed-in session inserted and read a test row, then deleted it. No test row remains.', false);
+  button.disabled = false;
 }
+byId('runTest').addEventListener('click', runDatabaseTest);
 byId('signOut').addEventListener('click', async () => { await db.auth.signOut(); records = []; show('auth'); setAuthMode('signin'); status(authStatus, 'Signed out.', false); });
 (async function start() {
   const { data, error } = await db.auth.getSession();
