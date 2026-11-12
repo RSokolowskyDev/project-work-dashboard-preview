@@ -37,7 +37,7 @@ table{width:100%;border-collapse:collapse;min-width:760px;background:#fff}th,td{
 <div class="span-2 actions"><button id="submitAuth" type="submit">Sign in</button><button id="toggleMode" class="secondary" type="button">Create account</button></div>
 </form>
 <div id="authStatus" class="status hidden" role="status"></div>
-<div class="notice">This preview reads the project records only. Updates and deletes are disabled.</div>
+<div class="notice">This preview uses an isolated test table only. It does not access or change live project records.</div>
 </section>
 <section id="mfaCard" class="card hidden">
 <h1 id="mfaTitle">Authenticator verification</h1>
@@ -68,6 +68,7 @@ const authCard = byId('authCard'), mfaCard = byId('mfaCard'), recordsCard = byId
 const authStatus = byId('authStatus'), mfaStatus = byId('mfaStatus'), dataStatus = byId('dataStatus');
 let authMode = 'signin', pendingFactorId = '', pendingChallengeId = '', mfaMode = '';
 let records = [], displayName = '';
+function escapeHtml(value) { return String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])); }
 function status(el, message, error) { el.textContent = message; el.classList.toggle('hidden', !message); el.classList.toggle('error', !!error); }
 function show(screen) { authCard.classList.toggle('hidden', screen !== 'auth'); mfaCard.classList.toggle('hidden', screen !== 'mfa'); recordsCard.classList.toggle('hidden', screen !== 'records'); }
 function setAuthMode(mode) { authMode = mode; byId('nameField').classList.toggle('hidden', mode !== 'signup'); byId('fullName').required = mode === 'signup'; byId('submitAuth').textContent = mode === 'signup' ? 'Create account' : 'Sign in'; byId('toggleMode').textContent = mode === 'signup' ? 'I already have an account' : 'Create account'; status(authStatus, '', false); }
