@@ -29,10 +29,11 @@ table{width:100%;border-collapse:collapse;min-width:760px;background:#fff}th,td{
 <main>
 <section id="authCard" class="card">
 <h1>Sign in to the project database</h1>
-<p>Use your Interior Solutions email. The first sign-in will ask you to set up an authenticator app.</p>
+<p>Use your Interior Solutions email and password. New accounts also need the project access code once. The first sign-in will ask you to set up an authenticator app.</p>
 <form id="authForm" class="auth-grid">
 <div id="nameField" class="span-2 hidden"><label for="fullName">Your name</label><input id="fullName" autocomplete="name" placeholder="First and last name"></div>
 <div class="span-2"><label for="email">Company email</label><input id="email" type="email" autocomplete="username" required placeholder="you@interiorsolutions.net"></div>
+<div id="accessCodeField" class="span-2 hidden"><label for="accessCode">Project access code</label><input id="accessCode" type="password" autocomplete="off" autocapitalize="characters" spellcheck="false"></div>
 <div class="span-2"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" minlength="8" required></div>
 <div class="span-2 actions"><button id="submitAuth" type="submit">Sign in</button><button id="toggleMode" class="secondary" type="button">Create account</button></div>
 </form>
@@ -71,14 +72,19 @@ let records = [], displayName = '';
 function escapeHtml(value) { return String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])); }
 function status(el, message, error) { el.textContent = message; el.classList.toggle('hidden', !message); el.classList.toggle('error', !!error); }
 function show(screen) { authCard.classList.toggle('hidden', screen !== 'auth'); mfaCard.classList.toggle('hidden', screen !== 'mfa'); recordsCard.classList.toggle('hidden', screen !== 'records'); }
-function setAuthMode(mode) { authMode = mode; byId('nameField').classList.toggle('hidden', mode !== 'signup'); byId('fullName').required = mode === 'signup'; byId('submitAuth').textContent = mode === 'signup' ? 'Create account' : 'Sign in'; byId('toggleMode').textContent = mode === 'signup' ? 'I already have an account' : 'Create account'; status(authStatus, '', false); }
+function setAuthMode(mode) { authMode = mode; byId('nameField').classList.toggle('hidden', mode !== 'signup'); byId('fullName').required = mode === 'signup'; byId('accessCodeField').classList.toggle('hidden', mode !== 'signup'); byId('accessCode').required = mode === 'signup'; byId('submitAuth').textContent = mode === 'signup' ? 'Create account' : 'Sign in'; byId('toggleMode').textContent = mode === 'signup' ? 'I already have an account' : 'Create account'; status(authStatus, '', false); }
 byId('toggleMode').addEventListener('click', () => setAuthMode(authMode === 'signin' ? 'signup' : 'signin'));
 byId('authForm').addEventListener('submit', async event => {
   event.preventDefault(); status(authStatus, 'Connecting…', false);
   const email = byId('email').value.trim().toLowerCase(), password = byId('password').value;
+  const accessCode = byId('accessCode').value.trim().toUpperCase();
   if (!email.endsWith(COMPANY_DOMAIN)) { status(authStatus, 'Use your @interiorsolutions.net email address.', true); return; }
   if (authMode === 'signup') {
     const name = byId('fullName').value.trim();
+    if (!accessCode) { status(authStatus, 'Enter the project access code to create an account.', true); return; }
+    const { data: accessAllowed, error: accessError } = await db.rpc('prepare_dashboard_registration', { p_email: email, p_access_code: accessCode });
+    if (accessError) { status(authStatus, 'Could not validate the project access code: ' + accessError.message, true); return; }
+    if (accessAllowed !== true) { status(authStatus, 'That email or project access code is not valid for registration.', true); return; }
     if (!name) { status(authStatus, 'Enter your name to create the account.', true); return; }
     const { data, error } = await db.auth.signUp({ email, password, options: { data: { full_name: name } } });
     if (error) { status(authStatus, error.message, true); return; }
