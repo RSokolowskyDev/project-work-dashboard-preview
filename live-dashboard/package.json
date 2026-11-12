@@ -1,0 +1,1 @@
+{"name":"interior-solutions-dashboard","version":"0.1.0","private":true,"type":"module","scripts":{"dev":"vite --host 127.0.0.1 --port 3000","build":"vite build"},"dependencies":{"vite":"8.3.1","react":"19.2.5","react-dom":"19.2.5"}}
