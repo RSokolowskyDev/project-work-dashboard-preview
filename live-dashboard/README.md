@@ -1,9 +1,10 @@
 # Project dashboard
 
 This dashboard reads `public.project_records` through Supabase Auth and the
-Supabase Data API. The database permits a signed-in, MFA-verified company user
-to read only records assigned to their email or to a name linked to that email
-in `public.dashboard_assignee_directory`. The dashboard is read-only.
+Supabase Data API. The database permits a signed-in user with a verified
+`@interiorsolutions.net` email to read only records assigned to that email or
+to a name linked to that email in `public.dashboard_assignee_directory`. The
+dashboard is read-only and does not require authenticator-app MFA.
 
 ## Assigning new records
 
@@ -46,6 +47,16 @@ provider in Supabase Authentication → Emails → SMTP Settings before rolling
 out registration. Keep the SMTP password out of this repository and enter it
 only in the provider's configuration. Leave email confirmation enabled: the
 database uses the verified company email to identify an employee.
+
+## Database policy update
+
+Apply `supabase/migrations/20261112000000_verified_employee_read_policies.sql`
+in the Supabase SQL Editor when updating an existing project. It replaces the
+two employee read policies so they no longer require AAL2, while continuing to
+check the confirmed company email and each person's direct or mapped assignment.
+The helper reads `auth.users` without exposing that schema to dashboard users.
+The current `project_records` grants already give `authenticated` SELECT only;
+anonymous SELECT and authenticated writes are denied.
 
 ## Build and deployment
 

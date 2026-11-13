@@ -5,6 +5,7 @@ import './styles.css';
 const url = 'https://qyeelndmdqptybsghmjm.supabase.co';
 const key = 'sb_publishable_Wh0weQys-eyO5-Tk8h1lUA_f6rFB34f';
 const library = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/+esm';
+const companyDomain = '@interiorsolutions.net';
 
 function App() {
   const [client, setClient] = useState(null);
@@ -25,9 +26,13 @@ function App() {
         const { data: sessionData, error: sessionError } = await db.auth.getSession();
         if (sessionError) throw sessionError;
         if (!sessionData.session) { window.location.replace('/backend-test.html'); return; }
-        const { data: assurance, error: assuranceError } = await db.auth.mfa.getAuthenticatorAssuranceLevel();
-        if (assuranceError) throw assuranceError;
-        if (assurance.currentLevel !== 'aal2') { window.location.replace('/backend-test.html'); return; }
+        const user = sessionData.session.user;
+        const userEmail = (user.email || '').trim().toLowerCase();
+        if (!user.email_confirmed_at || !userEmail.endsWith(companyDomain)) {
+          await db.auth.signOut();
+          window.location.replace('/backend-test.html');
+          return;
+        }
         const all = [];
         for (let from = 0; ; from += 1000) {
           const { data, error } = await db.from('project_records').select('record_id,project_id,project_name,summary,full_record,assigned_to,status,record_type,source,due_date,record_date,event_date,entered_by').order('record_date', { ascending: false }).order('record_id', { ascending: true }).range(from, from + 999);
@@ -36,7 +41,7 @@ function App() {
           if (data.length < 1000) break;
         }
         if (cancelled) return;
-        setClient(db); setEmail(sessionData.session.user.email || ''); setRecords(all); setState('');
+        setClient(db); setEmail(user.email || ''); setRecords(all); setState('');
         subscription = db.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') window.location.replace('/backend-test.html'); }).data.subscription;
       } catch (error) { if (!cancelled) setState('Unable to load your work: ' + (error.message || 'Please try again.')); }
     }
