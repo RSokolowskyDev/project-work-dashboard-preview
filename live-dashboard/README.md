@@ -37,6 +37,16 @@ Registration uses a project-wide trigger for new `@interiorsolutions.net`
 accounts, so the access code requirement also affects other sign-up flows
 connected to this Supabase Auth project.
 
+## Confirmation email delivery
+
+This project currently uses Supabase's default email sender. Supabase restricts
+that sender to organization team members and limits its delivery rate, so it
+cannot onboard the full employee group. Configure a suitable custom SMTP
+provider in Supabase Authentication → Emails → SMTP Settings before rolling
+out registration. Keep the SMTP password out of this repository and enter it
+only in the provider's configuration. Leave email confirmation enabled: the
+database uses the verified company email to identify an employee.
+
 ## Build and deployment
 
 The `live-dashboard` folder contains the React source and pinned dependencies.
